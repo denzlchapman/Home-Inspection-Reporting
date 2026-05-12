@@ -1,0 +1,4 @@
+streamlit>=1.36
+openai>=1.93
+requests>=2.32
+faster-whisper>=1.1
