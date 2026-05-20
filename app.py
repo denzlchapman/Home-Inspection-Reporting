@@ -73,6 +73,31 @@ COMMENT_LIBRARY = {
 }
 
 
+NAV_ITEMS = [
+    {
+        "view": "capture",
+        "label": "Capture",
+        "icon": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>',
+    },
+    {
+        "view": "review",
+        "label": "Review",
+        "icon": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l2 2 4-4"/><path d="M8 4h8l1 3H7l1-3Z"/><path d="M7 7H5v14h14V7h-2"/></svg>',
+    },
+    {
+        "view": "report",
+        "label": "Report",
+        "icon": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6v18h12V7l-4-4Z"/><path d="M14 3v4h4"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>',
+    },
+    {
+        "view": "camera",
+        "label": "Camera",
+        "icon": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h4l2-3h4l2 3h4v12H4V8Z"/><circle cx="12" cy="14" r="3.5"/></svg>',
+    },
+]
+NAV_VIEWS = {item["view"] for item in NAV_ITEMS}
+
+
 st.markdown(
     """
     <style>
@@ -88,7 +113,7 @@ st.markdown(
 
         .block-container {
             padding-top: 1.25rem;
-            padding-bottom: 2rem;
+            padding-bottom: 7.5rem;
             max-width: 1280px;
         }
 
@@ -177,6 +202,78 @@ st.markdown(
             border-radius: 8px;
             border: 1px solid var(--hia-accent);
         }
+
+        .hia-bottom-nav {
+            position: fixed;
+            left: 50%;
+            bottom: 1rem;
+            transform: translateX(-50%);
+            z-index: 999;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            width: min(720px, calc(100vw - 2rem));
+            min-height: 70px;
+            padding: 0.45rem;
+            border: 1px solid rgba(23, 107, 135, 0.18);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 16px 40px rgba(31, 41, 51, 0.18);
+            backdrop-filter: blur(12px);
+        }
+
+        .hia-bottom-nav a {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.2rem;
+            min-width: 0;
+            border-radius: 8px;
+            color: #7a8793;
+            text-decoration: none;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .hia-bottom-nav a:hover {
+            color: var(--hia-accent);
+            background: #eef8fb;
+            text-decoration: none;
+        }
+
+        .hia-bottom-nav a.is-active {
+            color: var(--hia-accent);
+            background: #e8f5f9;
+        }
+
+        .hia-bottom-nav svg {
+            width: 1.35rem;
+            height: 1.35rem;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        @media (max-width: 640px) {
+            .block-container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+                padding-bottom: 7rem;
+            }
+
+            .hia-bottom-nav {
+                bottom: 0.75rem;
+                width: calc(100vw - 1rem);
+                min-height: 66px;
+            }
+
+            .hia-bottom-nav a {
+                font-size: 0.72rem;
+            }
+        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -192,6 +289,29 @@ def initialize_state():
         st.session_state.current_note = ""
     if "last_transcript" not in st.session_state:
         st.session_state.last_transcript = ""
+
+
+def get_active_view():
+    active_view = st.query_params.get("view", "capture")
+    if isinstance(active_view, list):
+        active_view = active_view[0] if active_view else "capture"
+    return active_view if active_view in NAV_VIEWS else "capture"
+
+
+def render_bottom_nav(active_view):
+    nav_links = []
+    for item in NAV_ITEMS:
+        active_class = " is-active" if item["view"] == active_view else ""
+        current_attr = ' aria-current="page"' if item["view"] == active_view else ""
+        nav_links.append(
+            f'<a class="hia-nav-item{active_class}" href="?view={item["view"]}"{current_attr}>'
+            f'{item["icon"]}<span>{item["label"]}</span></a>'
+        )
+
+    st.markdown(
+        f'<nav class="hia-bottom-nav" aria-label="Primary app navigation">{"".join(nav_links)}</nav>',
+        unsafe_allow_html=True,
+    )
 
 
 def match_comment_library(raw_note):
@@ -631,11 +751,10 @@ metric_cols[0].metric("Report Items", total_items)
 metric_cols[1].metric("Approved", approved_items)
 metric_cols[2].metric("Needs Review", needs_review)
 
-capture_tab, review_tab, report_tab, camera_tab = st.tabs(
-    ["Capture", "Review", "Report", "AI Camera"]
-)
+active_view = get_active_view()
+render_bottom_nav(active_view)
 
-with capture_tab:
+if active_view == "capture":
     left_col, right_col = st.columns([0.95, 1.05])
 
     with left_col:
@@ -760,7 +879,7 @@ with capture_tab:
                 unsafe_allow_html=True,
             )
 
-with review_tab:
+if active_view == "review":
     st.subheader("Review Draft Items")
     if not st.session_state.report_items:
         st.info("No draft items yet. Add one from the Capture tab.")
@@ -768,7 +887,7 @@ with review_tab:
         for item_index, report_item in enumerate(st.session_state.report_items):
             render_report_item(report_item, item_index + 1)
 
-with report_tab:
+if active_view == "report":
     st.subheader("Generated Report")
     report_text = build_report_text(
         inspection_info,
@@ -785,7 +904,7 @@ with report_tab:
         mime="text/plain",
     )
 
-with camera_tab:
+if active_view == "camera":
     st.subheader("AI Camera Prototype")
     st.markdown(
         """
